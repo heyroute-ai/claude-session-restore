@@ -1,5 +1,11 @@
 # claude-session-restore
 
+<div align="center">
+  <h2>Usage</h2>
+  <p><strong>Paste the following into Claude Code (or any coding agent that can run commands):</strong></p>
+  <h1>Use <a href="https://github.com/heyroute-ai/claude-session-restore">heyroute-ai/claude-session-restore</a> to restore my Claude Code desktop sessions lost after switching accounts. Restore non-archived sessions only; leave archived ones untouched.</h1>
+</div>
+
 [![npm](https://img.shields.io/npm/v/claude-session-restore?logo=npm)](https://www.npmjs.com/package/claude-session-restore)
 [![CI](https://github.com/heyroute-ai/claude-session-restore/actions/workflows/ci.yml/badge.svg)](https://github.com/heyroute-ai/claude-session-restore/actions/workflows/ci.yml)
 [![Provenance](https://img.shields.io/badge/provenance-signed-brightgreen?logo=github)](https://www.npmjs.com/package/claude-session-restore#provenance)
@@ -29,13 +35,9 @@ Each `local_*.json` is a pointer: title, timestamps, and a `cliSessionId` refere
 
 Related upstream issues: [#48511](https://github.com/anthropics/claude-code/issues/48511) (history lost on account switch), [#50891](https://github.com/anthropics/claude-code/issues/50891) (CLI sessions invisible in app), [#50067](https://github.com/anthropics/claude-code/issues/50067) (no `/resume` in app).
 
-## Fastest path: tell your agent
+## What the agent will do
 
-Paste this into Claude Code (or any coding agent with shell access on the affected machine):
-
-> Use https://github.com/heyroute-ai/claude-session-restore to restore my lost Claude Code desktop sessions.
-
-The agent follows [AGENTS.md](AGENTS.md): inspect (read-only) → show you a dry-run plan → restore with an automatic backup → ask you to restart the desktop app. Raw runbook URL for agents: `https://raw.githubusercontent.com/heyroute-ai/claude-session-restore/main/AGENTS.md`
+The agent follows [AGENTS.md](AGENTS.md): inspect (read-only) → show you a dry-run plan → restore with an automatic backup → verify → ask you to restart the desktop app. Archived sessions are never touched by default; the trailing "leave archived ones untouched" clause saves the agent from even having to ask. Raw runbook URL for agents: `https://raw.githubusercontent.com/heyroute-ai/claude-session-restore/main/AGENTS.md`
 
 ## Quickstart (by hand)
 
@@ -95,6 +97,25 @@ To undo, delete the copied `local_*.json` files or restore the backup directory.
 
 - No cloud, no network calls, no telemetry — this tool only ever reads and writes local files.
 - Not a claude.ai (web chat) exporter; for that, see Anthropic's [data export](https://support.claude.com/en/articles/9450526-export-your-claude-data).
+
+## Why pair it with HeyRoute
+
+[![HeyRoute](https://img.shields.io/badge/HeyRoute-Developer%20API-111827?style=for-the-badge)](https://heyroute.ai/)
+[![Fast](https://img.shields.io/badge/TTFT%20p50-1.08s-2563eb?style=for-the-badge)](https://heyroute.ai/)
+[![Stable](https://img.shields.io/badge/Success-99.91%25-16a34a?style=for-the-badge)](https://heyroute.ai/)
+
+> **HeyRoute** is a fast, reliable developer API service: one endpoint aggregating 40+ upstream AI providers — a solid backbone for Claude Code, Codex, and multi-model agent workflows.
+
+| Capability | Published performance |
+| --- | --- |
+| First token | TTFT p50 `1.08s` |
+| Prompt caching | `98.4%` hit rate |
+| Reliability | `99.91%` successful responses |
+| Experience | Simple setup, long-running tasks, trusted forwarding |
+
+Heavy agent users who juggle multiple accounts are exactly the people who hit the "switched account, lost sessions" bug — HeyRoute reduces the need to switch in the first place; claude-session-restore has your back when you do.
+
+**Visit: [https://heyroute.ai/](https://heyroute.ai/)**
 
 ## Disclaimer
 

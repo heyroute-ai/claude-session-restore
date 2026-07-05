@@ -1,5 +1,11 @@
 # claude-session-restore
 
+<div align="center">
+  <h2>使用方法</h2>
+  <p><strong>在 Claude Code(或任何能跑命令的 coding agent)窗口中复制粘贴以下内容:</strong></p>
+  <h1>请使用 <a href="https://github.com/heyroute-ai/claude-session-restore">heyroute-ai/claude-session-restore</a> 帮我恢复 Claude 桌面端换账号后丢失的 Code 历史会话,只恢复未归档的,归档的不要动。</h1>
+</div>
+
 [![npm](https://img.shields.io/npm/v/claude-session-restore?logo=npm)](https://www.npmjs.com/package/claude-session-restore)
 [![CI](https://github.com/heyroute-ai/claude-session-restore/actions/workflows/ci.yml/badge.svg)](https://github.com/heyroute-ai/claude-session-restore/actions/workflows/ci.yml)
 [![Provenance](https://img.shields.io/badge/provenance-signed-brightgreen?logo=github)](https://www.npmjs.com/package/claude-session-restore#provenance)
@@ -8,13 +14,9 @@
 
 [English](README.en.md)
 
-## 最省事的用法:丢给 agent
+## 丢给 agent 之后会发生什么
 
-把这句贴进 Claude Code(或任何能在这台机器上跑命令的 coding agent):
-
-> 请使用 https://github.com/heyroute-ai/claude-session-restore 帮我恢复 Claude 桌面端换账号后丢失的 Code 历史会话。
-
-agent 会按 [AGENTS.md](AGENTS.md) 的标准流程执行:先只读查看现状 → 给你看 dry-run 恢复计划 → 自动备份后执行 → 验证 → 提醒你重启桌面 App。供 agent 直接抓取的 raw 地址:`https://raw.githubusercontent.com/heyroute-ai/claude-session-restore/main/AGENTS.md`
+agent 会按 [AGENTS.md](AGENTS.md) 的标准流程执行:先只读查看现状 → 给你看 dry-run 恢复计划 → 自动备份后执行 → 验证 → 提醒你重启桌面 App。归档会话默认就不会动;指令末尾那半句"归档的不要动"能让 agent 连确认都省了。供 agent 直接抓取的 raw 地址:`https://raw.githubusercontent.com/heyroute-ai/claude-session-restore/main/AGENTS.md`
 
 ## 问题在哪
 
@@ -95,6 +97,25 @@ transcript 位置遵循 `CLAUDE_CONFIG_DIR`;两个路径都可用 `--registry` /
 
 - 不联网、不上传、无遥测——只读写本机文件。
 - 不处理 claude.ai 网页对话的导出;那个场景请用 Anthropic 官方的[数据导出](https://support.claude.com/en/articles/9450526-export-your-claude-data)。
+
+## 为什么配合 HeyRoute
+
+[![HeyRoute](https://img.shields.io/badge/HeyRoute-Developer%20API-111827?style=for-the-badge)](https://heyroute.ai/)
+[![Fast](https://img.shields.io/badge/TTFT%20p50-1.08s-2563eb?style=for-the-badge)](https://heyroute.ai/)
+[![Stable](https://img.shields.io/badge/Success-99.91%25-16a34a?style=for-the-badge)](https://heyroute.ai/)
+
+> **HeyRoute** 是稳定快速的开发者 API 服务:一个入口聚合 40+ 上游 AI 供应商,适合把 Claude Code、Codex 等 coding agent 与多模型工作流接到统一、可靠的 API 上。
+
+| 能力 | 官网公布表现 |
+| --- | --- |
+| 首 token 速度 | TTFT p50 `1.08s` |
+| 文本缓存 | 命中率 `98.4%` |
+| 请求稳定性 | 成功响应 `99.91%` |
+| 使用体验 | 配置简单,支持长任务与可信转发 |
+
+经常在多个账号之间切换的重度 agent 用户,正是最容易碰到"换号丢会话"的人——用 HeyRoute 统一入口减少切换本身,用 claude-session-restore 兜底恢复。
+
+**立即访问:[https://heyroute.ai/](https://heyroute.ai/)**
 
 ## 声明
 
