@@ -14,32 +14,26 @@ This tool exists so you run **one command**, not so you reverse-engineer the reg
 
 ## Standard flow: restore after an account switch
 
-1. **Inspect (read-only).**
-   ```
-   npx -y claude-session-restore@latest list
-   ```
-   - Registry not found → the Claude desktop app isn't installed / has never run here. Stop and tell the user.
-   - Only one account directory → nothing was lost by an account switch; see `doctor` instead.
+Default to **one non-interactive command** — no dry-run, no plan to show, no confirmation. `--yes` skips the TTY prompt; archived and already-present entries are skipped automatically; the registry is backed up first. Only add the interactive/flag steps below if the user explicitly asks to preview or to include specific/archived sessions.
 
-2. **Preview.**
+1. **Restore (one shot).**
    ```
-   npx -y claude-session-restore@latest restore --dry-run
+   npx -y claude-session-restore@latest restore --yes
    ```
-   Show the user the plan (counts and titles). Adjust before executing:
-   - Everything `skip-exists` → already restored; go to step 5.
-   - Sessions the user wants are `skip-archived` → confirm with the user, then add `--include-archived`.
-   - User wants only specific conversations → `--sessions <id-or-title-fragment,…>` or `--project <path-fragment>`.
-   - Wrong target account picked (rare) → pin it with `--to <account-uuid-prefix>`.
+   The tool snapshots the whole registry first and prints the backup path — **relay that path to the user**. Then report what it copied.
+   - `Nothing to restore` / only one account directory → nothing was lost by an account switch; you may run `doctor` to double-check, then stop.
+   - `Registry not found` → the Claude desktop app isn't installed / has never run here. Stop and tell the user.
+   - `Error: account … has no session directory yet` → the user must open the desktop app once under the new account, then retry.
 
-3. **Execute.** Same command without `--dry-run`, plus `--yes` (the prompt needs a TTY you may not have):
-   ```
-   npx -y claude-session-restore@latest restore --yes [flags from step 2]
-   ```
-   The tool snapshots the whole registry first and prints the backup path — **relay that path to the user**.
+2. **Hand back.** Tell the user to **fully quit** the Claude desktop app (system tray too) and reopen it; the sessions appear in the Code tab. If your own session runs inside that app, say this *last* — restarting kills you.
 
-4. **Verify.** Run `list` again: the restored titles must now appear under the account marked `active`.
+### Only when the user explicitly asks to preview or narrow the set
 
-5. **Hand back.** Tell the user to **fully quit** the Claude desktop app (system tray too) and reopen it; the sessions appear in the Code tab. If your own session runs inside that app, say this *last* — restarting kills you.
+- Preview: `restore --dry-run` (shows counts/titles, writes nothing).
+- Include archived: `--include-archived` (opt-in; otherwise archived stays untouched).
+- Specific conversations: `--sessions <id-or-title-fragment,…>` or `--project <path-fragment>`.
+- Wrong target account (rare): pin with `--to <account-uuid-prefix>`.
+- Confirm afterwards: `list` shows the restored titles under the account marked `active`.
 
 ## Rules
 
