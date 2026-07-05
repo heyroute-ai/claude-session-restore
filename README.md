@@ -27,7 +27,15 @@ Each `local_*.json` is a pointer: title, timestamps, and a `cliSessionId` refere
 
 Related upstream issues: [#48511](https://github.com/anthropics/claude-code/issues/48511) (history lost on account switch), [#50891](https://github.com/anthropics/claude-code/issues/50891) (CLI sessions invisible in app), [#50067](https://github.com/anthropics/claude-code/issues/50067) (no `/resume` in app).
 
-## Quickstart
+## Fastest path: tell your agent
+
+Paste this into Claude Code (or any coding agent with shell access on the affected machine):
+
+> Use https://github.com/heyroute-ai/claude-session-restore to restore my lost Claude Code desktop sessions.
+
+The agent follows [AGENTS.md](AGENTS.md): inspect (read-only) → show you a dry-run plan → restore with an automatic backup → ask you to restart the desktop app. Raw runbook URL for agents: `https://raw.githubusercontent.com/heyroute-ai/claude-session-restore/main/AGENTS.md`
+
+## Quickstart (by hand)
 
 ```bash
 # see what's there (read-only)

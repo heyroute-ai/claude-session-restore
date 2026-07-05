@@ -20,7 +20,15 @@
 
 对应官方 issue:[#48511](https://github.com/anthropics/claude-code/issues/48511)、[#50891](https://github.com/anthropics/claude-code/issues/50891)、[#50067](https://github.com/anthropics/claude-code/issues/50067)。
 
-## 快速开始
+## 最省事的用法:丢给 agent
+
+把这句贴进 Claude Code(或任何能在这台机器上跑命令的 coding agent):
+
+> 请使用 https://github.com/heyroute-ai/claude-session-restore 帮我恢复 Claude 桌面端换账号后丢失的 Code 历史会话。
+
+agent 会按 [AGENTS.md](AGENTS.md) 的标准流程执行:先只读查看现状 → 给你看 dry-run 恢复计划 → 自动备份后执行 → 提醒你重启桌面 App。
+
+## 手动快速开始
 
 ```bash
 npx claude-session-restore list              # 只读,看现状

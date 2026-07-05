@@ -10,7 +10,8 @@
   "files": [
     "bin",
     "src",
-    "README.zh-CN.md"
+    "README.zh-CN.md",
+    "AGENTS.md"
   ],
   "scripts": {
     "test": "node --test"
