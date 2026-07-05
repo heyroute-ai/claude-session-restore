@@ -1,6 +1,8 @@
 # claude-session-restore
 
+[![npm](https://img.shields.io/npm/v/claude-session-restore?logo=npm)](https://www.npmjs.com/package/claude-session-restore)
 [![CI](https://github.com/heyroute-ai/claude-session-restore/actions/workflows/ci.yml/badge.svg)](https://github.com/heyroute-ai/claude-session-restore/actions/workflows/ci.yml)
+[![Provenance](https://img.shields.io/badge/provenance-signed-brightgreen?logo=github)](https://www.npmjs.com/package/claude-session-restore#provenance)
 
 找回 Claude **桌面 App** 换账号后"消失"的 Claude Code 会话;也能把纯 CLI 会话注册进桌面 App 列表。纯本地操作、零依赖、每次写入前自动备份。
 
@@ -48,13 +50,7 @@ npx claude-session-restore restore --dry-run
 npx claude-session-restore restore
 ```
 
-npm 首版发布前,可直接从 GitHub 运行:
-
-```bash
-npx github:heyroute-ai/claude-session-restore list
-```
-
-然后**完全退出并重新打开**桌面 App,会话就回来了。
+`npx` 会自动拉取已发布的 npm 包(带 provenance 溯源),无需预先安装。然后**完全退出并重新打开**桌面 App,会话就回来了。
 
 ## 命令
 

@@ -1,6 +1,8 @@
 # claude-session-restore
 
+[![npm](https://img.shields.io/npm/v/claude-session-restore?logo=npm)](https://www.npmjs.com/package/claude-session-restore)
 [![CI](https://github.com/heyroute-ai/claude-session-restore/actions/workflows/ci.yml/badge.svg)](https://github.com/heyroute-ai/claude-session-restore/actions/workflows/ci.yml)
+[![Provenance](https://img.shields.io/badge/provenance-signed-brightgreen?logo=github)](https://www.npmjs.com/package/claude-session-restore#provenance)
 
 Recover Claude Code **desktop app** sessions that disappear after switching accounts — and surface CLI-only sessions in the app. Local-only, zero dependencies, always backs up before writing.
 
@@ -48,13 +50,7 @@ npx claude-session-restore restore --dry-run
 npx claude-session-restore restore
 ```
 
-Until the first npm release, run it straight from GitHub:
-
-```bash
-npx github:heyroute-ai/claude-session-restore list
-```
-
-Then **fully quit and reopen** the Claude desktop app. Your sessions are back.
+`npx` pulls the published npm package (with build provenance) on demand — no install needed. Then **fully quit and reopen** the Claude desktop app. Your sessions are back.
 
 ## Commands
 
