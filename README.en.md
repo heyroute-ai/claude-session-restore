@@ -3,7 +3,7 @@
 <div align="center">
   <h2>Usage</h2>
   <p><strong>Paste the following into Claude Code (or any coding agent that can run commands):</strong></p>
-  <h1>Use <a href="https://github.com/heyroute-ai/claude-session-restore">heyroute-ai/claude-session-restore</a> to restore my Claude Code desktop sessions lost after switching accounts. Restore non-archived sessions only; leave archived ones untouched.</h1>
+  <h1>Use <code>npx -y claude-session-restore@latest</code> to restore my Claude Code desktop sessions lost after switching accounts: run <code>list</code> and <code>restore --dry-run</code> to show me the plan, restore non-archived sessions only (leave archived ones untouched), then run with <code>--yes</code> once I confirm. Full runbook: <a href="https://raw.githubusercontent.com/heyroute-ai/claude-session-restore/main/AGENTS.md">AGENTS.md</a>.</h1>
 </div>
 
 [![npm](https://img.shields.io/npm/v/claude-session-restore?logo=npm)](https://www.npmjs.com/package/claude-session-restore)

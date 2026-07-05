@@ -3,7 +3,7 @@
 <div align="center">
   <h2>使用方法</h2>
   <p><strong>在 Claude Code(或任何能跑命令的 coding agent)窗口中复制粘贴以下内容:</strong></p>
-  <h1>请使用 <a href="https://github.com/heyroute-ai/claude-session-restore">heyroute-ai/claude-session-restore</a> 帮我恢复 Claude 桌面端换账号后丢失的 Code 历史会话,只恢复未归档的,归档的不要动。</h1>
+  <h1>请用 <code>npx -y claude-session-restore@latest</code> 帮我恢复 Claude 桌面端换账号后丢失的 Code 会话:先跑 <code>list</code> 和 <code>restore --dry-run</code> 给我看计划,只恢复未归档的(归档的不要动),我确认后加 <code>--yes</code> 执行。完整流程见 <a href="https://raw.githubusercontent.com/heyroute-ai/claude-session-restore/main/AGENTS.md">AGENTS.md</a>。</h1>
 </div>
 
 [![npm](https://img.shields.io/npm/v/claude-session-restore?logo=npm)](https://www.npmjs.com/package/claude-session-restore)

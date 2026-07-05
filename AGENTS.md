@@ -2,24 +2,28 @@
 
 You are here because a user asked you to recover Claude Code **desktop app** sessions that vanished after switching accounts (or to surface CLI-only sessions in the app). This file is the standard procedure. Follow it with the tool — do **not** hand-edit registry files.
 
+## 0. Always call the tool, never reimplement
+
+This tool exists so you run **one command**, not so you reverse-engineer the registry format. Do **not** read, scan, or copy `local_*.json` yourself; do **not** write your own script; do **not** guess which directory is the active account. The CLI already does active-account detection, the account-specific `bridgeSessionIds` reset, BOM-less encoding, and automatic backup. If `npx` fails, fix the environment (see Troubleshooting) — **never** fall back to manual file surgery. Hand-copying costs more tokens, skips the backup, and gets the edge cases wrong.
+
 ## Requirements
 
 - Node.js >= 18 (`node --version`).
 - Shell access on the user's machine. Everything is local; no network calls beyond fetching this tool.
-- Tool invocation: `npx github:heyroute-ai/claude-session-restore <command>` (once published to npm: `npx claude-session-restore <command>`).
+- Tool invocation: `npx -y claude-session-restore@latest <command>` (published to npm, provenance-signed). Fallback if npm is unreachable: `npx github:heyroute-ai/claude-session-restore <command>`.
 
 ## Standard flow: restore after an account switch
 
 1. **Inspect (read-only).**
    ```
-   npx github:heyroute-ai/claude-session-restore list
+   npx -y claude-session-restore@latest list
    ```
    - Registry not found → the Claude desktop app isn't installed / has never run here. Stop and tell the user.
    - Only one account directory → nothing was lost by an account switch; see `doctor` instead.
 
 2. **Preview.**
    ```
-   npx github:heyroute-ai/claude-session-restore restore --dry-run
+   npx -y claude-session-restore@latest restore --dry-run
    ```
    Show the user the plan (counts and titles). Adjust before executing:
    - Everything `skip-exists` → already restored; go to step 5.
@@ -29,7 +33,7 @@ You are here because a user asked you to recover Claude Code **desktop app** ses
 
 3. **Execute.** Same command without `--dry-run`, plus `--yes` (the prompt needs a TTY you may not have):
    ```
-   npx github:heyroute-ai/claude-session-restore restore --yes [flags from step 2]
+   npx -y claude-session-restore@latest restore --yes [flags from step 2]
    ```
    The tool snapshots the whole registry first and prints the backup path — **relay that path to the user**.
 
@@ -48,8 +52,8 @@ You are here because a user asked you to recover Claude Code **desktop app** ses
 ## Variant: surface CLI-only sessions in the app
 
 ```
-npx github:heyroute-ai/claude-session-restore doctor          # lists unreferenced transcripts
-npx github:heyroute-ai/claude-session-restore adopt <cli-session-id> --yes
+npx -y claude-session-restore@latest doctor          # lists unreferenced transcripts
+npx -y claude-session-restore@latest adopt <cli-session-id> --yes
 ```
 `adopt` is experimental (synthesized registry entry) — say so when reporting. Same restart step applies.
 
