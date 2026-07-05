@@ -1,0 +1,41 @@
+{
+  "name": "claude-session-restore",
+  "version": "0.1.0",
+  "description": "Recover Claude Code desktop app sessions that disappear after switching accounts. Local-only, zero dependencies.",
+  "type": "module",
+  "bin": {
+    "claude-session-restore": "bin/cli.js",
+    "ccsr": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.zh-CN.md"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "claude-desktop",
+    "anthropic",
+    "session",
+    "restore",
+    "recovery",
+    "account-switch"
+  ],
+  "author": "HeyRoute (https://github.com/heyroute-ai)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heyroute-ai/claude-session-restore.git"
+  },
+  "bugs": {
+    "url": "https://github.com/heyroute-ai/claude-session-restore/issues"
+  },
+  "homepage": "https://github.com/heyroute-ai/claude-session-restore#readme"
+}
