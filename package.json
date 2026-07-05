@@ -1,6 +1,6 @@
 {
   "name": "claude-session-restore",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Recover Claude Code desktop app sessions that disappear after switching accounts. Local-only, zero dependencies.",
   "type": "module",
   "bin": {
