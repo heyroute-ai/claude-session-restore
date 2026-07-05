@@ -10,7 +10,7 @@
   "files": [
     "bin",
     "src",
-    "README.zh-CN.md",
+    "README.en.md",
     "AGENTS.md"
   ],
   "scripts": {

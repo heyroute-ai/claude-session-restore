@@ -57,4 +57,4 @@ npx github:heyroute-ai/claude-session-restore adopt <cli-session-id> --yes
 
 - **Windows PowerShell: "running scripts is disabled"** on `npx` → use `npx.cmd …`, or run from Git Bash, or `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`.
 - Ambiguous `--from/--to` prefix → the error lists candidates; use a longer prefix.
-- Full background: [README.md](README.md). Paths per OS are listed there.
+- Full background: [README.md](README.md) (中文, default) / [README.en.md](README.en.md) (English). Paths per OS are listed in both.
