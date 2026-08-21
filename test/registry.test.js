@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   scanRegistry,
+  scanProfiles,
   pickCurrentAccount,
   activeLeaf,
   matchAccount,
@@ -13,7 +14,7 @@ import {
   executeRestorePlan,
   backupRegistry,
 } from '../src/registry.js';
-import { registryRoot } from '../src/paths.js';
+import { registryRoot, userDataRoot } from '../src/paths.js';
 
 function makeFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ccsr-reg-'));
@@ -135,6 +136,93 @@ test('activeLeaf picks the most recently used workspace dir', () => {
   const reg = scanRegistry(root);
   const acc = pickCurrentAccount(reg.accounts);
   assert.equal(activeLeaf(acc).id, 'leaf-2');
+});
+
+// --- multi-profile ---------------------------------------------------------
+
+// Two user-data dirs holding the *same* account, which is what a machine looks
+// like once the user runs a second app instance with --user-data-dir.
+function makeTwoProfiles({ bridges = ['session_live'] } = {}) {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'ccsr-multi-'));
+  const mk = (name, sessions) => {
+    const dir = path.join(base, name);
+    const root = path.join(dir, 'claude-code-sessions');
+    for (const s of sessions) {
+      const leaf = path.join(root, s.account, 'leaf-1');
+      fs.mkdirSync(leaf, { recursive: true });
+      fs.writeFileSync(
+        path.join(leaf, `local_${s.id}.json`),
+        JSON.stringify({
+          sessionId: `local_${s.id}`,
+          cliSessionId: `cli-${s.id}`,
+          cwd: '/w',
+          title: s.id,
+          lastActivityAt: s.at,
+          isArchived: Boolean(s.archived),
+          bridgeSessionIds: s.bridges || [],
+        })
+      );
+    }
+    if (sessions.length === 0) fs.mkdirSync(path.join(root, 'acc-shared', 'leaf-1'), { recursive: true });
+    return { name, dir, root, activeAccountId: 'acc-shared' };
+  };
+  // "stale" still holds the account's sessions; "live" is where it signed in next.
+  const stale = mk('stale', [
+    { account: 'acc-shared', id: 'carried', at: 5000, bridges },
+    { account: 'acc-other', id: 'foreign', at: 6000, bridges: ['session_other'] },
+  ]);
+  const live = mk('live', []);
+  return { base, stale, live };
+}
+
+test('pickCurrentAccount trusts the declared account over the newest mtime', () => {
+  const { root } = makeFixture();
+  const reg = scanRegistry(root);
+  assert.equal(pickCurrentAccount(reg.accounts).id, 'account-new', 'falls back to activity');
+  assert.equal(pickCurrentAccount(reg.accounts, 'account-old').id, 'account-old', 'config.json wins');
+  assert.equal(pickCurrentAccount(reg.accounts, 'account-gone').id, 'account-new', 'unknown id falls back');
+});
+
+test('scanProfiles resolves each profile independently and back-links accounts', () => {
+  const { stale, live } = makeTwoProfiles();
+  const [a, b] = scanProfiles([stale, live]);
+  assert.equal(a.name, 'stale');
+  assert.equal(a.current.id, 'acc-shared', 'declared account beats the newer acc-other');
+  assert.equal(b.current.id, 'acc-shared');
+  assert.equal(a.accounts.find((x) => x.id === 'acc-shared').profile, a, 'account knows its profile');
+});
+
+test('patchForRestore keeps bridgeSessionIds when the account is unchanged', () => {
+  const data = { sessionId: 'local_x', bridgeSessionIds: ['session_a'] };
+  assert.deepEqual(patchForRestore(data).bridgeSessionIds, [], 'cross-account still clears');
+  assert.deepEqual(patchForRestore(data, { sameAccount: true }).bridgeSessionIds, ['session_a']);
+  assert.deepEqual(data.bridgeSessionIds, ['session_a'], 'input must not be mutated');
+});
+
+test('restore across profiles carries the same account and flags foreign ones', () => {
+  const { stale, live } = makeTwoProfiles();
+  const [from, to] = scanProfiles([stale, live]);
+  const plan = buildRestorePlan({ fromAccounts: from.accounts, toAccount: to.current });
+  const items = Object.fromEntries(plan.items.map((i) => [i.session.name, i]));
+
+  assert.equal(items['local_carried.json'].sameAccount, true);
+  assert.equal(items['local_foreign.json'].sameAccount, false);
+  assert.equal(items['local_carried.json'].sourceProfile.name, 'stale', 'plan records where it came from');
+
+  assert.equal(executeRestorePlan(plan), 2);
+  const leaf = path.join(to.root, 'acc-shared', 'leaf-1');
+  const carried = JSON.parse(fs.readFileSync(path.join(leaf, 'local_carried.json'), 'utf8'));
+  const foreign = JSON.parse(fs.readFileSync(path.join(leaf, 'local_foreign.json'), 'utf8'));
+  assert.deepEqual(carried.bridgeSessionIds, ['session_live'], 'same account keeps its live bridges');
+  assert.deepEqual(foreign.bridgeSessionIds, [], 'a different account must not carry bridges');
+});
+
+test('userDataRoot maps per platform', () => {
+  const home = '/home/u';
+  assert.equal(userDataRoot({ platform: 'win32', env: { APPDATA: 'C:\\Users\\u\\AppData\\Roaming' }, home }), 'C:\\Users\\u\\AppData\\Roaming');
+  assert.equal(userDataRoot({ platform: 'darwin', env: {}, home }), path.join(home, 'Library', 'Application Support'));
+  assert.equal(userDataRoot({ platform: 'linux', env: {}, home }), path.join(home, '.config'));
+  assert.equal(userDataRoot({ platform: 'linux', env: { XDG_CONFIG_HOME: '/xdg' }, home }), '/xdg');
 });
 
 test('registryRoot maps per platform', () => {

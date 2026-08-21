@@ -58,32 +58,57 @@ npx claude-session-restore restore
 
 | Command | What it does |
 |---|---|
-| `list` | Show every account directory and its sessions; marks the active account, archived sessions (`A`), and missing transcripts (`M`). Default command. |
-| `restore` | Copy session entries from stale account dirs into the active one. Skips entries that already exist and archived sessions by default. |
+| `list` | Show every profile, account directory and its sessions; marks the active account, archived sessions (`A`), and missing transcripts (`M`). Default command. |
+| `restore` | Copy stranded session entries into the account directory the app actually writes to. Skips entries that already exist and archived sessions by default. |
+| `profiles` | List the desktop app profiles (`--user-data-dir`) found on this machine. |
 | `adopt <id\|file>` | **Experimental.** Register a CLI-only transcript so it shows up in the desktop app. |
-| `backup` | Snapshot the whole registry directory. |
+| `backup` | Snapshot the target profile's registry directory. |
 | `doctor` | Consistency check: unreadable entries, entries whose transcript is missing, transcripts no entry references. |
 
-Useful flags: `--dry-run`, `--yes`, `--from <account-prefix>`, `--to <account-prefix>`, `--sessions <id-or-title,…>`, `--project <text>`, `--include-archived`, `--force`, `--json`, `--registry <dir>`, `--claude-dir <dir>`.
+Useful flags: `--dry-run`, `--yes`, `--to-profile <name>`, `--from-profile <name>`, `--all-accounts`, `--from <account-prefix>`, `--to <account-prefix>`, `--sessions <id-or-title,…>`, `--project <text>`, `--include-archived`, `--force`, `--json`, `--registry <dir>`, `--claude-dir <dir>`.
+
+## Multiple profiles (several accounts signed in at once)
+
+`--user-data-dir` lets you run independent desktop app instances, each signed into a different account:
+
+```bash
+claude-desktop --user-data-dir="$HOME/.config/Claude-Profiles/account-b"
+```
+
+That gives the machine **several registries** rather than one. Earlier versions only knew about the default install, so the common case — account B's sessions left behind in the default profile while B's own window shows nothing — was out of reach. They are discovered automatically now:
+
+```bash
+npx claude-session-restore profiles          # what's on this machine
+npx claude-session-restore restore --to-profile account-b --dry-run
+```
+
+By default `restore` pulls from two sources, neither of which can mix identities:
+
+1. **Other account directories in the same profile** — the classic account switch.
+2. **The same account uuid in another profile** — the same identity, stranded elsewhere.
+
+Sweeping in *other* accounts takes an explicit `--from-profile <name>` or `--all-accounts`. The default never makes that call for you.
 
 ## What restore actually does
 
-1. Detects the **active** account: the directory the app wrote to most recently. Override with `--to`.
-2. Backs up the entire registry to `claude-code-sessions.backup-<timestamp>` next to it.
-3. Copies each selected `local_*.json` into the active account's workspace directory, unchanged except for one field: `bridgeSessionIds` is cleared, because those reference server-side sessions belonging to the old account.
+1. Detects the **target profile** and its active account, preferring `lastKnownAccountUuid` from that profile's `config.json` — authoritative — and falling back to "which directory was written to most recently" only when it is absent. Override with `--to-profile` / `--to`.
+2. Backs up the **target profile's** registry to `claude-code-sessions.backup-<timestamp>` next to it.
+3. Copies each selected `local_*.json` into the target workspace directory. Crossing *accounts* clears `bridgeSessionIds`, because those reference server-side sessions belonging to the source account; moving one account's entries between profiles **keeps** them, since the identity is unchanged and dropping them would discard working state for nothing.
 4. Never touches the source directories, never overwrites existing entries (unless `--force`), never touches transcripts.
 
 To undo, delete the copied `local_*.json` files or restore the backup directory. Nothing else changed.
 
 ## Paths
 
-| OS | Session registry | Transcripts |
+| OS | Session registry (default profile) | Transcripts |
 |---|---|---|
 | Windows | `%APPDATA%\Claude\claude-code-sessions` | `%USERPROFILE%\.claude\projects` |
 | macOS | `~/Library/Application Support/Claude/claude-code-sessions` | `~/.claude/projects` |
 | Linux | `~/.config/Claude/claude-code-sessions` | `~/.claude/projects` |
 
-`CLAUDE_CONFIG_DIR` is honored for the transcript location; both paths can be overridden per-invocation with `--registry` / `--claude-dir`.
+Extra profiles are discovered by scanning two levels down from the same parent directory for `Claude*` entries, which covers layouts like `<parent>/Claude-Profiles/<name>`; a directory anywhere else can be named outright with `--profile <dir>`.
+
+**Transcripts are global**, not part of any profile — every profile's conversation bodies live under the same `~/.claude/projects`, which is why a cross-profile restore still opens with its content intact. `CLAUDE_CONFIG_DIR` is honored for the transcript location; both paths can be overridden per-invocation with `--registry` / `--claude-dir`.
 
 ## Notes & caveats
 

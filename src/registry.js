@@ -43,10 +43,27 @@ export function scanRegistry(root) {
   return result;
 }
 
-// The account whose sessions were written most recently is treated as the
-// signed-in one; the app only ever writes into the active account's directory.
-export function pickCurrentAccount(accounts) {
+// The signed-in account, whose directory is the only one the app writes to.
+// `activeAccountId` comes from the profile's config.json and is authoritative
+// when present; otherwise fall back to whichever account was written last.
+export function pickCurrentAccount(accounts, activeAccountId) {
+  if (activeAccountId) {
+    const declared = accounts.find((a) => a.id === activeAccountId);
+    if (declared) return declared;
+  }
   return accounts.length ? accounts[0] : undefined;
+}
+
+// Scan every discovered profile into one addressable set. Each account keeps a
+// back-reference to its profile so a restore plan can span user-data dirs.
+export function scanProfiles(profiles) {
+  return profiles.map((profile) => {
+    const { accounts } = scanRegistry(profile.root);
+    const scanned = { ...profile, accounts };
+    for (const account of accounts) account.profile = scanned;
+    scanned.current = pickCurrentAccount(accounts, profile.activeAccountId);
+    return scanned;
+  });
 }
 
 export function activeLeaf(account) {
@@ -64,11 +81,13 @@ export function matchAccount(accounts, prefix) {
 }
 
 // bridgeSessionIds reference server-side sessions created under the source
-// account; carrying them across accounts is the only known hazard, so they
-// are always cleared on restore.
-export function patchForRestore(data) {
+// account; carrying them to a *different* account is the only known hazard, so
+// they are cleared by default. Moving an account's own entries between two
+// profiles keeps them — the identity is unchanged, so the references still
+// resolve and dropping them would lose working state for no benefit.
+export function patchForRestore(data, { sameAccount = false } = {}) {
   const copy = structuredClone(data);
-  copy.bridgeSessionIds = [];
+  if (!sameAccount) copy.bridgeSessionIds = [];
   return copy;
 }
 
@@ -102,7 +121,13 @@ export function buildRestorePlan({ registry, fromAccounts, toAccount, includeArc
         if (session.data.__parseError) action = 'skip-invalid';
         else if (session.data.isArchived && !includeArchived) action = 'skip-archived';
         else if (existing.has(session.name) && !force) action = 'skip-exists';
-        items.push({ session, sourceAccount: acc, action });
+        items.push({
+          session,
+          sourceAccount: acc,
+          sourceProfile: acc.profile,
+          sameAccount: acc.id === toAccount.id,
+          action,
+        });
       }
     }
   }
@@ -115,7 +140,7 @@ export function executeRestorePlan(plan) {
     if (item.action !== 'copy') continue;
     const target = path.join(plan.targetLeaf.dir, item.session.name);
     // Node's 'utf8' write is BOM-less, matching what the app itself produces.
-    fs.writeFileSync(target, JSON.stringify(patchForRestore(item.session.data)), 'utf8');
+    fs.writeFileSync(target, JSON.stringify(patchForRestore(item.session.data, { sameAccount: item.sameAccount })), 'utf8');
     copied++;
   }
   return copied;

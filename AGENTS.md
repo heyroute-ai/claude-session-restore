@@ -4,7 +4,9 @@ You are here because a user asked you to recover Claude Code **desktop app** ses
 
 ## 0. Always call the tool, never reimplement
 
-This tool exists so you run **one command**, not so you reverse-engineer the registry format. Do **not** read, scan, or copy `local_*.json` yourself; do **not** write your own script; do **not** guess which directory is the active account. The CLI already does active-account detection, the account-specific `bridgeSessionIds` reset, BOM-less encoding, and automatic backup. If `npx` fails, fix the environment (see Troubleshooting) — **never** fall back to manual file surgery. Hand-copying costs more tokens, skips the backup, and gets the edge cases wrong.
+This tool exists so you run **one command**, not so you reverse-engineer the registry format. Do **not** read, scan, or copy `local_*.json` yourself; do **not** write your own script; do **not** guess which directory is the active account. The CLI already does active-account detection, multi-profile discovery, the account-specific `bridgeSessionIds` reset, BOM-less encoding, and automatic backup. If `npx` fails, fix the environment (see Troubleshooting) — **never** fall back to manual file surgery. Hand-copying costs more tokens, skips the backup, and gets the edge cases wrong.
+
+Sessions stranded in **another desktop profile** (`--user-data-dir`) are covered too — see "Variant: several profiles" below. That case needs a flag, not a shell loop.
 
 ## Requirements
 
@@ -20,8 +22,8 @@ Default to **one non-interactive command** — no dry-run, no plan to show, no c
    ```
    npx -y claude-session-restore@latest restore --yes
    ```
-   The tool snapshots the whole registry first and prints the backup path — **relay that path to the user**. Then report what it copied.
-   - `Nothing to restore` / only one account directory → nothing was lost by an account switch; you may run `doctor` to double-check, then stop.
+   The tool snapshots the target profile's registry first and prints the backup path — **relay that path to the user**. Then report what it copied.
+   - `0 to copy` / `Nothing to restore` → nothing was lost *for the account it targeted*. Before concluding nothing was lost at all, run `profiles`: if more than one exists, the user may mean a different one — see "Variant: several profiles".
    - `Registry not found` → the Claude desktop app isn't installed / has never run here. Stop and tell the user.
    - `Error: account … has no session directory yet` → the user must open the desktop app once under the new account, then retry.
 
@@ -32,8 +34,8 @@ Default to **one non-interactive command** — no dry-run, no plan to show, no c
 - Preview: `restore --dry-run` (shows counts/titles, writes nothing).
 - Include archived: `--include-archived` (opt-in; otherwise archived stays untouched).
 - Specific conversations: `--sessions <id-or-title-fragment,…>` or `--project <path-fragment>`.
-- Wrong target account (rare): pin with `--to <account-uuid-prefix>`.
-- Confirm afterwards: `list` shows the restored titles under the account marked `active`.
+- Wrong target account (rare): pin with `--to <account-uuid-prefix>`; wrong profile: `--to-profile <name>`.
+- Confirm afterwards: `list` shows the restored titles under the account marked `active`, grouped by profile.
 
 ## Rules
 
@@ -42,6 +44,21 @@ Default to **one non-interactive command** — no dry-run, no plan to show, no c
 - Do not edit `local_*.json` by hand; the tool already handles the account-specific field (`bridgeSessionIds`), BOM-less encoding, and backups.
 - `Error: account … has no session directory yet` → the user must open the desktop app once under the new account (any new session), then retry.
 - Rollback, if ever needed: restore the printed backup directory, or delete the copied `local_*.json` files from the active account's directory.
+
+## Variant: several profiles (`--user-data-dir`)
+
+Reach for this when the user says the conversations belong to **another account** and must be brought "over here", or when step 1 reported `0 to copy` but sessions really are missing.
+
+```
+npx -y claude-session-restore@latest profiles
+npx -y claude-session-restore@latest restore --to-profile <name> --yes
+```
+
+- `profiles` names every user-data dir found and the account each is signed into. Use it to decide the target — **do not** infer the profile from which window you happen to be running in.
+- `--to-profile <name>` restores into that profile's signed-in account.
+- Default sources stay identity-safe: other accounts in the same profile, plus the same account uuid in other profiles. Pulling in a *different* account requires `--from-profile` or `--all-accounts` — only pass those if the user actually asked to merge accounts, and say plainly that you are doing so.
+- Same account across profiles keeps `bridgeSessionIds`; crossing accounts clears it. The tool decides this per entry — do not second-guess it.
+- Restart applies to **that profile's** window, not whichever one is in front.
 
 ## Variant: surface CLI-only sessions in the app
 

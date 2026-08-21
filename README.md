@@ -58,32 +58,57 @@ npx claude-session-restore restore
 
 | 命令 | 作用 |
 |---|---|
-| `list` | 列出所有账号目录及其会话;标记活跃账号、归档会话(`A`)、transcript 缺失(`M`)。默认命令。 |
-| `restore` | 把失活账号目录的会话条目拷进活跃账号。默认跳过已存在条目和已归档会话。 |
+| `list` | 按 profile 分组列出所有账号目录及其会话;标记活跃账号、归档会话(`A`)、transcript 缺失(`M`)。默认命令。 |
+| `restore` | 把搁浅的会话条目拷进 App 实际写入的那个账号目录。默认跳过已存在条目和已归档会话。 |
+| `profiles` | 列出本机发现的所有桌面 App profile(`--user-data-dir`)。 |
 | `adopt <id\|文件>` | **实验性。** 把纯 CLI 会话注册进桌面 App 列表。 |
-| `backup` | 给整个注册表目录做快照。 |
+| `backup` | 给目标 profile 的注册表目录做快照。 |
 | `doctor` | 一致性体检:损坏条目、transcript 丢失的条目、没有任何条目引用的 transcript。 |
 
-常用参数:`--dry-run`、`--yes`、`--from <账号前缀>`、`--to <账号前缀>`、`--sessions <id或标题片段,…>`、`--project <路径片段>`、`--include-archived`、`--force`、`--json`、`--registry <目录>`、`--claude-dir <目录>`。
+常用参数:`--dry-run`、`--yes`、`--to-profile <名字>`、`--from-profile <名字>`、`--all-accounts`、`--from <账号前缀>`、`--to <账号前缀>`、`--sessions <id或标题片段,…>`、`--project <路径片段>`、`--include-archived`、`--force`、`--json`、`--registry <目录>`、`--claude-dir <目录>`。
+
+## 多 profile(同时登录多个账号)
+
+用 `--user-data-dir` 可以让桌面 App 同时开多个互不干扰的实例,每个登录不同账号:
+
+```bash
+claude-desktop --user-data-dir="$HOME/.config/Claude-Profiles/account-b"
+```
+
+这样机器上就有**多个注册表**,而不只是一个。旧版本只认默认安装那一个,于是"账号 B 的会话还留在默认 profile 里、B 自己的窗口却看不到"这种情况完全没法处理。现在会自动发现它们:
+
+```bash
+npx claude-session-restore profiles          # 看看本机有哪些 profile
+npx claude-session-restore restore --to-profile account-b --dry-run
+```
+
+`restore` 默认只从两类**不可能混淆身份**的来源取数据:
+
+1. **同一 profile 内的其他账号目录** —— 经典的换账号场景。
+2. **其他 profile 里相同 account uuid 的目录** —— 同一个账号被留在了别处。
+
+想把*别的账号*的会话也扫进来,必须显式 `--from-profile <名字>` 或 `--all-accounts`。默认永远不会替你做这个决定。
 
 ## restore 到底做了什么
 
-1. 识别**活跃**账号:App 最近写入过的那个目录。可用 `--to` 覆盖。
-2. 把整个注册表备份到同级的 `claude-code-sessions.backup-<时间戳>`。
-3. 把选中的 `local_*.json` 拷进活跃账号的 workspace 目录,只改一个字段:清空 `bridgeSessionIds`——它引用的是旧账号名下的服务端会话。
+1. 识别**目标 profile**及其活跃账号:优先读该 profile `config.json` 里的 `lastKnownAccountUuid`(权威值),读不到才退回"最近写入过哪个目录"的推断。可用 `--to-profile` / `--to` 覆盖。
+2. 把**目标 profile** 的注册表备份到同级的 `claude-code-sessions.backup-<时间戳>`。
+3. 把选中的 `local_*.json` 拷进目标 workspace 目录。跨*账号*时清空 `bridgeSessionIds`(它引用的是源账号名下的服务端会话);同一账号在两个 profile 之间搬运时**保留**该字段——身份没变,引用依然有效,清掉反而白丢状态。
 4. 永不改动源目录、永不覆盖已存在条目(除非 `--force`)、永不碰 transcript。
 
 回滚:删除拷入的 `local_*.json`,或整体还原备份目录。其余什么都没变。
 
 ## 路径
 
-| 系统 | 会话注册表 | 对话记录 |
+| 系统 | 会话注册表(默认 profile) | 对话记录 |
 |---|---|---|
 | Windows | `%APPDATA%\Claude\claude-code-sessions` | `%USERPROFILE%\.claude\projects` |
 | macOS | `~/Library/Application Support/Claude/claude-code-sessions` | `~/.claude/projects` |
 | Linux | `~/.config/Claude/claude-code-sessions` | `~/.claude/projects` |
 
-transcript 位置遵循 `CLAUDE_CONFIG_DIR`;两个路径都可用 `--registry` / `--claude-dir` 按次覆盖。
+额外 profile 会在同一父目录下按 `Claude*` 前缀向下扫描两层,因此 `<父目录>/Claude-Profiles/<名字>` 这类布局能被自动发现;任意位置的目录可用 `--profile <目录>` 直接指名。
+
+**transcript 是全局共享的**,不属于任何 profile——所有 profile 的会话正文都在同一个 `~/.claude/projects` 下,这正是跨 profile 恢复之后内容依然完整的原因。transcript 位置遵循 `CLAUDE_CONFIG_DIR`;两个路径都可用 `--registry` / `--claude-dir` 按次覆盖。
 
 ## 注意与坑
 
