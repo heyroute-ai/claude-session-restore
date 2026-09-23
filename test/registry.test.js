@@ -240,3 +240,36 @@ test('registryRoot maps per platform', () => {
     path.join(home, '.config', 'Claude', 'claude-code-sessions')
   );
 });
+
+// The same pointer file often sits in several source directories — e.g. once in
+// another profile and once more in an account already restored from it. Only
+// one copy can land, so the plan must pick one instead of writing it twice.
+test('buildRestorePlan copies a pointer once when several sources carry it, newest wins', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ccsr-dup-'));
+  const write = (account, at, title) => {
+    const leaf = path.join(root, account, 'leaf');
+    fs.mkdirSync(leaf, { recursive: true });
+    fs.writeFileSync(
+      path.join(leaf, 'local_same.json'),
+      JSON.stringify({ sessionId: 'local_same', cliSessionId: 'cli-same', cwd: '/w', title, lastActivityAt: at, isArchived: false, bridgeSessionIds: [] })
+    );
+  };
+  write('src-old', 1000, 'older copy');
+  write('src-new', 3000, 'newer copy');
+  fs.mkdirSync(path.join(root, 'target', 'leaf'), { recursive: true });
+  const { accounts } = scanRegistry(root);
+  const pick = (id) => accounts.find((a) => a.id === id);
+
+  // Source order must not decide the winner: try both.
+  for (const order of [['src-old', 'src-new'], ['src-new', 'src-old']]) {
+    const plan = buildRestorePlan({ fromAccounts: order.map(pick), toAccount: pick('target') });
+    const copies = plan.items.filter((i) => i.action === 'copy');
+    assert.equal(copies.length, 1, `order ${order}`);
+    assert.equal(copies[0].sourceAccount.id, 'src-new', `order ${order}`);
+    assert.equal(plan.items.find((i) => i.sourceAccount.id === 'src-old').action, 'skip-duplicate');
+  }
+  const plan = buildRestorePlan({ fromAccounts: [pick('src-old'), pick('src-new')], toAccount: pick('target') });
+  assert.equal(executeRestorePlan(plan), 1);
+  const landed = JSON.parse(fs.readFileSync(path.join(root, 'target', 'leaf', 'local_same.json'), 'utf8'));
+  assert.equal(landed.title, 'newer copy');
+});

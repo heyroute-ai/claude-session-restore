@@ -151,3 +151,37 @@ test('cli --version prints the package version', () => {
   const out = execFileSync(process.execPath, [bin, '--version'], { encoding: 'utf8' });
   assert.equal(out.trim(), pkg.version);
 });
+
+// A third profile signed into its own account, with nothing stranded for that
+// account anywhere else. The identity-safe default finds no source, but other
+// profiles still hold sessions the user may well be looking for.
+function fixtureWithLoneProfile() {
+  const fx = fixtureProfiles();
+  const gammaLeaf = path.join(path.dirname(fx.betaRoot), '..', 'gamma', 'claude-code-sessions', 'acc-gamma', 'leaf-1');
+  fs.mkdirSync(gammaLeaf, { recursive: true });
+  fs.writeFileSync(path.join(gammaLeaf, '..', '..', '..', 'config.json'), JSON.stringify({ lastKnownAccountUuid: 'acc-gamma' }));
+  return { ...fx, gammaLeaf };
+}
+
+test('cli restore with no default source still names the target and points at the wider sweep', () => {
+  const { run } = fixtureWithLoneProfile();
+  const out = run(['restore', '--to-profile', 'gamma', '--dry-run']);
+  assert.ok(out.includes('acc-gamma'), `must say which account it looked at:\n${out}`);
+  assert.ok(out.includes('gamma'), `must say which profile it looked at:\n${out}`);
+  assert.ok(out.includes('--all-accounts'), `must mention the opt-in that would find them:\n${out}`);
+  assert.ok(/\b2\b/.test(out), `must say how many unarchived sessions are out of scope:\n${out}`);
+});
+
+test('cli list --json emits plain data without the profile back-reference', () => {
+  const { run } = fixtureProfiles();
+  const parsed = JSON.parse(run(['list', '--json']));
+  const def = parsed.profiles.find((p) => p.name === 'default');
+  assert.equal(def.currentAccount, 'acc-shared');
+  const shared = def.accounts.find((a) => a.id === 'acc-shared');
+  assert.equal(shared.active, true);
+  const carried = shared.sessions.find((s) => s.cliSessionId === 'cli-carried');
+  assert.equal(carried.title, 'carried');
+  assert.equal(carried.isArchived, false);
+  assert.equal(carried.hasTranscript, false);
+  assert.equal(carried.bridgeSessionIds, undefined, 'only the pointer summary, not the whole entry');
+});

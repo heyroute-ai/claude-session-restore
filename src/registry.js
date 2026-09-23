@@ -131,7 +131,28 @@ export function buildRestorePlan({ registry, fromAccounts, toAccount, includeArc
       }
     }
   }
+  keepNewestCopy(items);
   return { targetLeaf, toAccount, items };
+}
+
+// Every copy lands at <targetLeaf>/<file name>, so two sources carrying the same
+// pointer would silently overwrite each other and the count would double. Keep
+// the most recently active one; source order must not decide which survives.
+// Ranked by the entry's own lastActivityAt, not mtime: a pointer an earlier
+// restore copied has a fresh mtime and would otherwise beat the real original.
+// On a tie the account's own entry wins, since it keeps its bridgeSessionIds.
+function keepNewestCopy(items) {
+  const at = (item) => Number(item.session.data.lastActivityAt) || 0;
+  const beats = (a, b) => (at(a) !== at(b) ? at(a) > at(b) : a.sameAccount && !b.sameAccount);
+  const winners = new Map();
+  for (const item of items) {
+    if (item.action !== 'copy') continue;
+    const best = winners.get(item.session.name);
+    if (!best || beats(item, best)) winners.set(item.session.name, item);
+  }
+  for (const item of items) {
+    if (item.action === 'copy' && winners.get(item.session.name) !== item) item.action = 'skip-duplicate';
+  }
 }
 
 export function executeRestorePlan(plan) {

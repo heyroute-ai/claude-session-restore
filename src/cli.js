@@ -129,9 +129,11 @@ function resolveTarget(ctx, flags) {
 // Two source sets need no naming because neither can mix identities: other
 // accounts in the same profile (the account-switch case) and the same account
 // living in another profile (the multi-profile case). Wider sweeps are opt-in.
+const widensScope = (flags) => Boolean(flags['from-profile'] || flags['all-accounts']);
+
 function resolveSources(ctx, targetProfile, to, flags) {
   const pool = flags['from-profile'] ? [matchProfile(ctx.profiles, flags['from-profile'])] : ctx.profiles;
-  const wide = Boolean(flags['from-profile'] || flags['all-accounts']);
+  const wide = widensScope(flags);
   const picked = [];
   for (const profile of pool) {
     for (const account of profile.accounts) {
@@ -166,6 +168,41 @@ function cmdProfiles(ctx) {
   return 0;
 }
 
+// Explicit projection: scanned accounts point back at their profile (a cycle),
+// and a full registry entry carries app state such as MCP server config that a
+// listing has no business echoing. Emit the same pointer summary `list` shows.
+function profileJson(profile, transcripts) {
+  return {
+    name: profile.name,
+    dir: profile.dir,
+    root: profile.root,
+    activeAccountId: profile.activeAccountId ?? null,
+    currentAccount: profile.current?.id ?? null,
+    accounts: profile.accounts.map((acc) => ({
+      id: acc.id,
+      dir: acc.dir,
+      active: acc === profile.current,
+      lastActivityAt: acc.lastActivityAt,
+      sessions: acc.leaves.flatMap((leaf) =>
+        leaf.sessions.map((s) =>
+          s.data.__parseError
+            ? { file: s.file, parseError: s.data.__parseError }
+            : {
+                file: s.file,
+                sessionId: s.data.sessionId,
+                cliSessionId: s.data.cliSessionId,
+                title: s.data.title ?? null,
+                cwd: s.data.cwd ?? null,
+                isArchived: Boolean(s.data.isArchived),
+                lastActivityAt: s.data.lastActivityAt ?? null,
+                hasTranscript: transcripts.has(s.data.cliSessionId),
+              }
+        )
+      ),
+    })),
+  };
+}
+
 function cmdList(ctx, flags) {
   const { profiles, projects } = ctx;
   if (allAccounts(profiles).length === 0) {
@@ -175,22 +212,7 @@ function cmdList(ctx, flags) {
   }
   const transcripts = scanTranscripts(projects);
   if (flags.json) {
-    console.log(
-      JSON.stringify(
-        {
-          profiles: profiles.map((p) => ({
-            name: p.name,
-            dir: p.dir,
-            root: p.root,
-            activeAccountId: p.activeAccountId,
-            currentAccount: p.current?.id,
-            accounts: p.accounts,
-          })),
-        },
-        null,
-        2
-      )
-    );
+    console.log(JSON.stringify({ profiles: profiles.map((p) => profileJson(p, transcripts)) }, null, 2));
     return 0;
   }
   for (const profile of profiles) {
@@ -223,6 +245,31 @@ function cmdList(ctx, flags) {
   return 0;
 }
 
+// Unarchived sessions the identity-safe default deliberately left out: they
+// belong to other accounts. Counted once per pointer file, minus what the
+// target already has, so the number is what --all-accounts would add at most.
+function printOutOfScope(ctx, to, inScope) {
+  const present = new Set(to.leaves.flatMap((l) => l.sessions.map((s) => s.name)));
+  const names = new Set();
+  const profiles = new Set();
+  for (const account of allAccounts(ctx.profiles)) {
+    if (account === to || inScope.includes(account)) continue;
+    for (const leaf of account.leaves) {
+      for (const s of leaf.sessions) {
+        if (s.data.__parseError || s.data.isArchived || present.has(s.name)) continue;
+        names.add(s.name);
+        profiles.add(account.profile.name);
+      }
+    }
+  }
+  if (names.size === 0) return;
+  console.log(
+    `\n${names.size} unarchived session(s) in other accounts are outside the default scope (profile: ${[...profiles].join(', ')}).` +
+      '\nThey belong to a different account. To merge them into this one anyway, re-run with --all-accounts or --from-profile <name>;' +
+      '\nto aim at a different profile instead, pass --to-profile <name> (see "profiles").'
+  );
+}
+
 async function cmdRestore(ctx, flags) {
   const { profile: targetProfile, to } = resolveTarget(ctx, flags);
   if (!to) {
@@ -230,10 +277,6 @@ async function cmdRestore(ctx, flags) {
     return 1;
   }
   const from = resolveSources(ctx, targetProfile, to, flags);
-  if (from.length === 0) {
-    console.log('Nothing to restore: no other directory on this machine holds sessions for this account.');
-    return 0;
-  }
   const sessionFilters = flags.sessions ? String(flags.sessions).split(',').map((s) => s.trim()).filter(Boolean) : [];
   const plan = buildRestorePlan({
     fromAccounts: from,
@@ -247,22 +290,29 @@ async function cmdRestore(ctx, flags) {
   const skips = plan.items.filter((i) => i.action !== 'copy');
   const crossProfile = plan.items.some((i) => i.sourceProfile && i.sourceProfile !== targetProfile);
 
+  // Named up front on every path: an empty result is only meaningful once you
+  // know which profile and account it was empty for.
   console.log(`Restore into account ${to.id}${to === targetProfile.current ? ' (active)' : ''}`);
   console.log(`Profile:          ${targetProfile.name} — ${targetProfile.dir}`);
   console.log(`Target directory: ${plan.targetLeaf.dir}\n`);
-  if (plan.items.length === 0) {
+  if (from.length === 0) {
+    console.log('Nothing to restore: no other directory on this machine holds sessions for this account.');
+  } else if (plan.items.length === 0) {
     console.log('No sessions matched.');
-    return 0;
+  } else {
+    const headers = crossProfile ? ['action', 'from profile', 'cli id', 'last activity', 'title'] : ['action', 'cli id', 'last activity', 'title'];
+    printTable(
+      headers,
+      plan.items.map((i) => {
+        const tail = [short(i.session.data.cliSessionId), fmtTime(i.session.data.lastActivityAt), (i.session.data.title || i.session.name).slice(0, 48)];
+        return crossProfile ? [i.action, i.sourceProfile?.name ?? '?', ...tail] : [i.action, ...tail];
+      })
+    );
+    console.log(`\n${copies.length} to copy, ${skips.length} skipped (already present / archived / duplicate / invalid)`);
   }
-  const headers = crossProfile ? ['action', 'from profile', 'cli id', 'last activity', 'title'] : ['action', 'cli id', 'last activity', 'title'];
-  printTable(
-    headers,
-    plan.items.map((i) => {
-      const tail = [short(i.session.data.cliSessionId), fmtTime(i.session.data.lastActivityAt), (i.session.data.title || i.session.name).slice(0, 48)];
-      return crossProfile ? [i.action, i.sourceProfile?.name ?? '?', ...tail] : [i.action, ...tail];
-    })
-  );
-  console.log(`\n${copies.length} to copy, ${skips.length} skipped (already present / archived / invalid)`);
+  // Only nudge when the user left the source to the default; an explicit
+  // --from / --from-profile / --all-accounts already says what they wanted.
+  if (copies.length === 0 && !flags.from && !widensScope(flags)) printOutOfScope(ctx, to, from);
   if (flags['dry-run']) {
     console.log('Dry run — nothing written.');
     return 0;

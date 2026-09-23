@@ -23,7 +23,7 @@ Default to **one non-interactive command** — no dry-run, no plan to show, no c
    npx -y claude-session-restore@latest restore --yes
    ```
    The tool snapshots the target profile's registry first and prints the backup path — **relay that path to the user**. Then report what it copied.
-   - `0 to copy` / `Nothing to restore` → nothing was lost *for the account it targeted*. Before concluding nothing was lost at all, run `profiles`: if more than one exists, the user may mean a different one — see "Variant: several profiles".
+   - `0 to copy` / `Nothing to restore` → nothing was lost *for the account it targeted*; the header names that profile and account. If it adds `N unarchived session(s) in other accounts are outside the default scope`, those belong to a **different account**: the target is usually still right, so do not switch `--to-profile` on a hunch. Ask whether the user wants them merged into this account, and if so re-run with the same target plus `--all-accounts` (or `--from-profile <name>`). Only when the user says they look at a different window, pick that profile from `profiles` — see "Variant: several profiles".
    - `Registry not found` → the Claude desktop app isn't installed / has never run here. Stop and tell the user.
    - `Error: account … has no session directory yet` → the user must open the desktop app once under the new account, then retry.
 
